@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Key Issuance & Return Log</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --navy: #0f2744;
+    --navy-mid: #1a3e5c;
+    --navy-light: #2c5f8a;
+    --accent: #2e86c1;
+    --accent-light: #aed6f1;
+    --bg: #f4f7fb;
+    --surface: #ffffff;
+    --border: #d0dce8;
+    --text: #1a2b3c;
+    --text-muted: #5a7089;
+    --row-alt: #eaf2fa;
+    --green: #1a7a4a;
+    --green-bg: #d5f5e3;
+    --red: #c0392b;
+    --red-bg: #fdf0ef;
+    --orange: #c07000;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* TOPBAR */
+  .topbar {
+    background: var(--navy);
+    color: white;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+  }
+  .topbar-title { font-size: 15px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+  .topbar-sub { font-size: 12px; color: var(--accent-light); margin-top: 2px; }
+  .topbar-actions { display: flex; gap: 10px; }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    background: var(--navy-mid);
+    padding: 0 32px;
+    border-bottom: 2px solid var(--navy-light);
+  }
+  .tab {
+    padding: 11px 22px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent-light);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .tab:hover { color: white; }
+  .tab.active { color: white; border-bottom-color: var(--accent-light); }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 18px;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover:not(:disabled) { background: #2478aa; }
+  .btn-success { background: var(--green); color: white; }
+  .btn-success:hover:not(:disabled) { background: #155e39; }
+  .btn-ghost { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); }
+  .btn-ghost:hover { background: rgba(255,255,255,0.18); }
+  .btn-outline { background: white; color: var(--navy-mid); border: 1px solid var(--border); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-sm { padding: 7px 14px; font-size: 12px; }
+  .btn-danger-sm { background: transparent; color: var(--red); border: 1px solid #e0b0ae; font-size: 12px; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+  .btn-danger-sm:hover { background: var(--red-bg); }
+
+  /* PANELS */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* CONTAINER */
+  .container { max-width: 960px; margin: 28px auto; padding: 0 24px 60px; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .card-header {
+    background: var(--navy);
+    padding: 13px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-header-title { font-size: 12px; font-weight: 600; color: white; text-transform: uppercase; letter-spacing: 0.06em; }
+  .card-body { padding: 22px 24px; }
+
+  /* FIELDS */
+  .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .form-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; }
+  .field-group { display: flex; flex-direction: column; gap: 5px; }
+  .field-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+  .field-input {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    background: var(--bg);
+    transition: border-color 0.15s, background 0.15s;
+    width: 100%;
+  }
+  .field-input:focus { outline: none; border-color: var(--accent); background: white; }
+
+  /* CHECKBOX FIELDS */
+  .checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+  }
+  .checkbox-group:hover { border-color: var(--accent); background: white; }
+  .checkbox-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--navy);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .checkbox-label { font-size: 13px; color: var(--text); line-height: 1.4; }
+  .checkbox-group.checked { border-color: var(--green); background: #f0faf4; }
+
+  /* SUBMIT AREA */
+  .submit-area { display: flex; justify-content: flex-end; gap: 12px; align-items: center; padding-top: 4px; }
+  .submit-msg { font-size: 13px; font-weight: 500; display: none; }
+  .submit-msg.show { display: block; }
+  .submit-msg.success { color: var(--green); }
+  .submit-msg.warning { color: var(--orange); }
+
+  /* LOG */
+  .log-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
+  .log-count { font-size: 13px; color: var(--text-muted); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: var(--row-alt); }
+  th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--navy-mid); border-bottom: 2px solid var(--border); white-space: nowrap; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f5f9fd; }
+
+  /* BADGES */
+  .badge { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+  .badge-issued { background: #fef3cd; color: #8a6000; }
+  .badge-returned { background: var(--green-bg); color: var(--green); }
+  .badge-synced { background: var(--green-bg); color: var(--green); }
+  .badge-local { background: #fef3cd; color: #8a6000; }
+
+  /* NOTICE */
+  .notice {
+    background: #eaf4fc;
+    border: 1px solid var(--accent-light);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--navy-mid);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.5;
+  }
+
+  /* EMPTY STATE */
+  .empty-state { text-align: center; padding: 50px 20px; color: var(--text-muted); }
+  .empty-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.4; }
+
+  /* CONFIG BANNER */
+  .config-banner {
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #6d4c00;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 700px) {
+    .form-grid-2, .form-grid-3, .form-grid-4 { grid-template-columns: 1fr; }
+    .topbar { padding: 12px 16px; }
+    .container { padding: 0 12px 40px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-title">Key Issuance &amp; Return Log</div>
+    <div class="topbar-sub">Veterans Inc. &mdash; Facilities &amp; Maintenance</div>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn btn-ghost btn-sm" onclick="showTab('form')">&#43; New Entry</button>
+    <button class="btn btn-ghost btn-sm" onclick="showTab('log')">&#128203; View Log</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" id="tab-form" onclick="showTab('form')">&#43;&nbsp; New Assignment</button>
+  <button class="tab" id="tab-log" onclick="showTab('log')">&#128203;&nbsp; Assignment Log</button>
+</div>
+
+<!-- FORM PANEL -->
+<div class="panel active" id="panel-form">
+  <div class="container">
+
+    <div id="config-banner" class="config-banner" style="display:none;">
+      &#9888;&nbsp; <span>Power Automate is not yet configured. Entries will save locally only. See instructions below to connect.</span>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-header-title">Key Details</span></div>
+      <div class="card-body">
+        <div class="form-grid-4" style="margin-bottom:16px;">
+          <div class="field-group">
+            <label class="field-label">Date Issued</label>
+            <input class="field-input" type="date" id="f-date-issued">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Key ID / Number</label>
+            <input class="field-input" type="text" id="f-key-id" placeholder="e.g. K-042">
+          </div>
+          <div class="field-group" style="grid-column: span 2;">
+            <label class="field-label">Location Name</label>
+            <input class="field-input" type="text" id="f-location" placeholder="e.g. Room 204, Main Office, Side Entrance">
+          </div>
+        </div>
+        <div class="form-grid-2">
+          <div class="field-group">
+            <label class="field-label">Employee Name</label>
+            <input class="field-input" type="text" id="f-emp-name" placeholder="Full name">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Employee Title / Role</label>
+            <input class="field-input" type="text" id="f-emp-title" placeholder="e.g. Case Manager">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-header-title">Acknowledgment</span></div>
+      <div class="card-body">
+        <div class="form-grid-2">
+          <div class="field-group">
+            <label class="field-label">Employee</label>
+            <label class="checkbox-group" id="cb-emp-wrap">
+              <input type="checkbox" id="f-emp-ack" onchange="toggleCheck('cb-emp-wrap', this)">
+              <span class="checkbox-label">Employee acknowledges receipt of this key and agrees to return it upon request or separation from the organization.</span>
+            </label>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Maintenance Manager</label>
+            <label class="checkbox-group" id="cb-mgr-wrap">
+              <input type="checkbox" id="f-mgr-ack" onchange="toggleCheck('cb-mgr-wrap', this)">
+              <span class="checkbox-label">Maintenance manager confirms this key has been issued to the named employee for the stated location.</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-header-title">Return &amp; Notes <span style="font-weight:400;opacity:0.7;">(optional at time of issue)</span></span></div>
+      <div class="card-body">
+        <div class="form-grid-2">
+          <div class="field-group">
+            <label class="field-label">Date Returned</label>
+            <input class="field-input" type="date" id="f-date-returned">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Notes</label>
+            <input class="field-input" type="text" id="f-notes" placeholder="Lost key, replacement, policy exception, etc.">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="submit-area">
+      <span class="submit-msg" id="submit-msg"></span>
+      <button class="btn btn-outline" onclick="resetForm()">Clear Form</button>
+      <button class="btn btn-success" id="save-btn" onclick="submitEntry()">&#10003;&nbsp; Save Entry</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- LOG PANEL -->
+<div class="panel" id="panel-log">
+  <div class="container">
+
+    <div class="notice">
+      &#128274;&nbsp; <span>Submissions post to <strong>SharePoint via Power Automate</strong>. A local backup is kept in this browser as a fallback. The <strong>Sync</strong> column shows whether each record reached SharePoint. Export to Excel anytime for a local snapshot.</span>
+    </div>
+
+    <div class="card">
+      <div class="log-toolbar">
+        <span class="log-count" id="log-count">0 records</span>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-outline" onclick="exportExcel()">&#128196;&nbsp; Export to Excel</button>
+          <button class="btn-danger-sm" style="padding:7px 14px;" onclick="clearAllData()">&#128465; Clear All Data</button>
+        </div>
+      </div>
+      <div id="log-table-wrap">
+        <div class="empty-state">
+          <div class="empty-icon">&#128203;</div>
+          <p>No entries yet. Submit a key assignment to get started.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="return-card" style="display:none;">
+      <div class="card-header"><span class="card-header-title">Record a Key Return</span></div>
+      <div class="card-body">
+        <div class="form-grid-3" style="margin-bottom:14px;">
+          <div class="field-group" style="grid-column:span 2;">
+            <label class="field-label">Select Entry</label>
+            <select class="field-input" id="return-select"></select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Date Returned</label>
+            <input class="field-input" type="date" id="return-date">
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;">
+          <button class="btn btn-success" onclick="recordReturn()">Save Return Date</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ---- CONFIGURATION ----
+// Paste your Power Automate HTTP trigger URL below between the single quotes.
+// Leave it blank if not yet configured.
+const FLOW_URL = 'https://default0798a08214b3408aaf841c9fed850c.d6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e3161e5c1b4c47a68d7b4c8f4ebb6437/triggers/manual/paths/invoke?api-version=1';
+
+const STORAGE_KEY = 'keylog_v2';
+
+// ---- INIT ----
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('f-date-issued').valueAsDate = new Date();
+  if (!FLOW_URL) document.getElementById('config-banner').style.display = 'flex';
+});
+
+// ---- TABS ----
+function showTab(tab) {
+  document.getElementById('panel-form').classList.toggle('active', tab === 'form');
+  document.getElementById('panel-log').classList.toggle('active', tab === 'log');
+  document.getElementById('tab-form').classList.toggle('active', tab === 'form');
+  document.getElementById('tab-log').classList.toggle('active', tab === 'log');
+  if (tab === 'log') renderLog();
+}
+
+// ---- CHECKBOX STYLING ----
+function toggleCheck(wrapId, checkbox) {
+  document.getElementById(wrapId).classList.toggle('checked', checkbox.checked);
+}
+
+// ---- STORAGE ----
+function loadEntries() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+function saveEntries(entries) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+}
+
+// ---- SUBMIT ----
+async function submitEntry() {
+  const dateIssued  = document.getElementById('f-date-issued').value;
+  const keyId       = document.getElementById('f-key-id').value.trim();
+  const location    = document.getElementById('f-location').value.trim();
+  const empName     = document.getElementById('f-emp-name').value.trim();
+  const empAck      = document.getElementById('f-emp-ack').checked;
+  const mgrAck      = document.getElementById('f-mgr-ack').checked;
+
+  if (!dateIssued || !keyId || !location || !empName) {
+    alert('Please fill in Date Issued, Key ID, Location, and Employee Name before saving.');
+    return;
+  }
+
+  const entry = {
+    id: Date.now(),
+    dateIssued,
+    keyId,
+    location,
+    empName,
+    empTitle:     document.getElementById('f-emp-title').value.trim(),
+    empAck,
+    mgrAck,
+    dateReturned: document.getElementById('f-date-returned').value || null,
+    status:       document.getElementById('f-date-returned').value ? 'Returned' : 'Issued',
+    notes:        document.getElementById('f-notes').value.trim(),
+    createdAt:    new Date().toISOString(),
+    syncedToSharePoint: false
+  };
+
+  const btn = document.getElementById('save-btn');
+  const msg = document.getElementById('submit-msg');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  let flowSuccess = false;
+
+  if (FLOW_URL) {
+    try {
+      const res = await fetch(FLOW_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dateIssued:   entry.dateIssued,
+          keyId:        entry.keyId,
+          location:     entry.location,
+          empName:      entry.empName,
+          empTitle:     entry.empTitle || '',
+          empAck:       entry.empAck ? 'Yes' : 'No',
+          mgrAck:       entry.mgrAck ? 'Yes' : 'No',
+          dateReturned: entry.dateReturned || '',
+          status:       entry.status,
+          notes:        entry.notes || ''
+        })
+      });
+      flowSuccess = res.ok || res.status === 202;
+    } catch (err) {
+      console.warn('Power Automate post failed:', err);
+    }
+  }
+
+  entry.syncedToSharePoint = flowSuccess;
+
+  const entries = loadEntries();
+  entries.unshift(entry);
+  saveEntries(entries);
+
+  btn.disabled = false;
+  btn.innerHTML = '&#10003;&nbsp; Save Entry';
+
+  if (!FLOW_URL) {
+    msg.className = 'submit-msg warning show';
+    msg.textContent = '⚠ Saved locally — Power Automate not yet configured';
+  } else if (flowSuccess) {
+    msg.className = 'submit-msg success show';
+    msg.textContent = '✓ Saved to SharePoint successfully';
+  } else {
+    msg.className = 'submit-msg warning show';
+    msg.textContent = '⚠ Saved locally — SharePoint sync failed, check your flow';
+  }
+  setTimeout(() => msg.classList.remove('show'), 5000);
+  resetForm();
+}
+
+// ---- RESET FORM ----
+function resetForm() {
+  ['f-date-issued','f-key-id','f-location','f-emp-name','f-emp-title','f-date-returned','f-notes']
+    .forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-date-issued').valueAsDate = new Date();
+  document.getElementById('f-emp-ack').checked = false;
+  document.getElementById('f-mgr-ack').checked = false;
+  document.getElementById('cb-emp-wrap').classList.remove('checked');
+  document.getElementById('cb-mgr-wrap').classList.remove('checked');
+}
+
+// ---- RENDER LOG ----
+function renderLog() {
+  const entries = loadEntries();
+  document.getElementById('log-count').textContent = entries.length + (entries.length === 1 ? ' record' : ' records');
+  const wrap = document.getElementById('log-table-wrap');
+
+  if (entries.length === 0) {
+    wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">&#128203;</div><p>No entries yet.</p></div>`;
+    document.getElementById('return-card').style.display = 'none';
+    return;
+  }
+
+  const rows = entries.map(e => {
+    const status  = e.dateReturned
+      ? `<span class="badge badge-returned">Returned</span>`
+      : `<span class="badge badge-issued">Issued</span>`;
+    const sync = e.syncedToSharePoint
+      ? `<span class="badge badge-synced">&#10003; Synced</span>`
+      : `<span class="badge badge-local">Local only</span>`;
+    const empAck = e.empAck ? '&#10003;' : '&#10007;';
+    const mgrAck = e.mgrAck ? '&#10003;' : '&#10007;';
+    return `<tr>
+      <td>${e.dateIssued}</td>
+      <td><strong>${h(e.keyId)}</strong></td>
+      <td>${h(e.location)}</td>
+      <td>${h(e.empName)}${e.empTitle ? `<br><span style="font-size:11px;color:var(--text-muted)">${h(e.empTitle)}</span>` : ''}</td>
+      <td style="text-align:center;font-size:16px;color:${e.empAck ? 'var(--green)' : 'var(--red)'}">${empAck}</td>
+      <td style="text-align:center;font-size:16px;color:${e.mgrAck ? 'var(--green)' : 'var(--red)'}">${mgrAck}</td>
+      <td>${e.dateReturned || '<span style="color:#b0b0b0">—</span>'}</td>
+      <td>${status}</td>
+      <td>${sync}</td>
+      <td>${e.notes ? h(e.notes) : '<span style="color:#b0b0b0">—</span>'}</td>
+      <td><button class="btn-danger-sm" onclick="deleteEntry(${e.id})">Remove</button></td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `<div style="overflow-x:auto;"><table>
+    <thead><tr>
+      <th>Date Issued</th><th>Key ID</th><th>Location</th><th>Employee</th>
+      <th>Emp. Ack</th><th>Mgr. Ack</th><th>Returned</th><th>Status</th><th>Sync</th><th>Notes</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+
+  const issued = entries.filter(e => !e.dateReturned);
+  const rc = document.getElementById('return-card');
+  if (issued.length > 0) {
+    rc.style.display = 'block';
+    document.getElementById('return-select').innerHTML = issued.map(e =>
+      `<option value="${e.id}">${h(e.empName)} — ${h(e.keyId)} (${e.dateIssued})</option>`
+    ).join('');
+    document.getElementById('return-date').valueAsDate = new Date();
+  } else {
+    rc.style.display = 'none';
+  }
+}
+
+function deleteEntry(id) {
+  if (!confirm('Remove this entry from the local log?')) return;
+  saveEntries(loadEntries().filter(e => e.id !== id));
+  renderLog();
+}
+
+function recordReturn() {
+  const id   = parseInt(document.getElementById('return-select').value);
+  const date = document.getElementById('return-date').value;
+  if (!date) { alert('Please select a return date.'); return; }
+  saveEntries(loadEntries().map(e => e.id === id ? { ...e, dateReturned: date, status: 'Returned' } : e));
+  renderLog();
+}
+
+function clearAllData() {
+  if (!confirm('This permanently deletes all local entries. Export to Excel first if you need a backup. Continue?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  renderLog();
+}
+
+// ---- EXCEL EXPORT ----
+function exportExcel() {
+  const entries = loadEntries();
+  if (entries.length === 0) { alert('No entries to export.'); return; }
+
+  const rows = entries.map(e => ({
+    'Date Issued':                    e.dateIssued,
+    'Key ID':                         e.keyId,
+    'Location':                       e.location,
+    'Employee Name':                  e.empName,
+    'Employee Title':                 e.empTitle || '',
+    'Employee Acknowledges Receipt':  e.empAck ? 'Yes' : 'No',
+    'Manager Confirms Issuance':      e.mgrAck ? 'Yes' : 'No',
+    'Date Returned':                  e.dateReturned || '',
+    'Status':                         e.status || (e.dateReturned ? 'Returned' : 'Issued'),
+    'Notes':                          e.notes || '',
+    'Synced to SharePoint':           e.syncedToSharePoint ? 'Yes' : 'No',
+    'Record Created':                 new Date(e.createdAt).toLocaleString()
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [
+    {wch:14},{wch:12},{wch:26},{wch:22},{wch:20},
+    {wch:28},{wch:26},{wch:14},{wch:12},{wch:28},{wch:20},{wch:22}
+  ];
+
+  const issued   = entries.filter(e => !e.dateReturned).length;
+  const returned = entries.length - issued;
+  const ws2 = XLSX.utils.aoa_to_sheet([
+    ['Key Issuance & Return Log', ''],
+    ['Organization', 'Veterans Inc.'],
+    ['Export Date', new Date().toLocaleString()],
+    ['', ''],
+    ['Total Records', entries.length],
+    ['Currently Issued', issued],
+    ['Returned', returned],
+  ]);
+  ws2['!cols'] = [{wch:22},{wch:28}];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Key Log');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
+  XLSX.writeFile(wb, `VeteransInc_Key_Log_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function h(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
